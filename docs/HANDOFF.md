@@ -1,19 +1,20 @@
 # DMS handoff — 5 October 2026
 
-Handed from a Claude Cowork session to Claude CLI. Cowork could not push to
-GitHub or create the Vercel project, so the code is built and tested but
-**nothing is deployed and nothing has been pushed**.
+Handed from a Claude Cowork session to Claude CLI. Claude CLI then pushed the
+code, created the Vercel project and deployed to production (steps 1 to 4
+below, done 5 October). **Live at https://dms-mu-black.vercel.app.**
 
 ## Where things stand
 
 | Thing | State |
 | --- | --- |
-| Code | In `~/INSPIRE_EDGE/dms`. Two local commits on `main`, plus uncommitted `CLAUDE.md` and `docs/` (this handoff). Not pushed. |
-| GitHub | `https://github.com/Chopstiiiix/DMS---DIGITAL-MARKETING-SPECIALIST.git` set as `origin`. Repo is empty. |
+| Code | In `~/INSPIRE_EDGE/dms`, pushed to `main`. |
+| GitHub | `https://github.com/Chopstiiiix/DMS---DIGITAL-MARKETING-SPECIALIST.git` (`origin`). |
 | Database | Schema applied to Supabase project `mot-platform` (migration `dms_init`). First org and brand seeded. `dms` schema exposed through the Data API. |
-| Vercel | No project yet. Team: "Chopper's projects" (`team_Sv4x7CmXpc3UlyGxo9nMtIP0`). |
-| Sign-in | Built (email link or password). Never tested against the real project. |
-| Short-link domain | `go.spinmusic.uk` chosen and stored on the brand. No DNS record yet. |
+| Vercel | Project `dms` (`prj_yxYfrEiQpIgsi8KJl8iwxBZ6Fzco`) in "Chopper's projects" (`team_Sv4x7CmXpc3UlyGxo9nMtIP0`, slug `choppers-projects-b98532fa`). Connected to GitHub: every push to `main` deploys to production. Env vars set. |
+| Production | `https://dms-mu-black.vercel.app`. Redirect URL `https://dms-mu-black.vercel.app/auth/callback` added in Supabase. |
+| Sign-in | Email link tested end to end on production. |
+| Short-link domain | `go.spinmusic.uk` chosen and stored on the brand. No DNS record yet, so short links only work at the fallback `/r/<brand id>/<slug>` (see below). |
 | Spin sync | Not started. Dashboard shows clicks only until it exists. |
 
 ## What was built (Phase 1, first slice)
@@ -34,12 +35,18 @@ Verified:
 - 14 isolation checks passed on the real `mot-platform` database (Postgres 17) inside a rolled-back transaction.
 - Supabase security advisor reports nothing for `dms` or `dms_private`.
 
-Not verified (do these first after deploying):
+Verified on production (5 October, Claude CLI):
 
-- A real API call through Supabase's Data API against the `dms` schema. Cowork's network could not reach `supabase.co`.
-- The emailed sign-in link, end to end.
-- The redirect writing a real click row.
-- Anything on Vercel.
+- Emailed sign-in link, end to end.
+- Creating a link through the Data API as the signed-in user (RLS applies). No grant changes were needed.
+- The redirect: `302` to `spinmusic.uk/signup` with `utm_*` and `dms_click`, and a matching row in `dms.link_clicks` (country, device, OS, bot flag, salted hash, no IP).
+
+Not verified yet:
+
+- The click appearing on the dashboard (Malcolm to check by eye).
+- `./scripts/test-db.sh` was not re-run (Docker was off; no migration changed).
+
+Test data left in production: link `smoke-test` and its clicks. Delete with Malcolm's OK.
 
 ## Identifiers
 
@@ -53,28 +60,24 @@ Not verified (do these first after deploying):
 | Seeded org / brand | `Inspire` / `Spin Music` (slug `spin`) |
 | Brand settings | link domain `go.spinmusic.uk`; default destination `https://spinmusic.uk/signup`; allowed hosts `spinmusic.uk`, `apps.apple.com` |
 | Vercel function region | `dub1` (set in `vercel.json`, next to the database) |
+| Spin brand id | `543a3992-ed6e-4014-9ba5-0cac13034c20` |
+| Short-link fallback | `https://dms-mu-black.vercel.app/r/543a3992-ed6e-4014-9ba5-0cac13034c20/<slug>` |
 | Spin app repo | `~/INSPIRE_EDGE/radio1` (`github.com/Chopstiiiix/RADIO1`) |
 
-## Environment variables for Vercel
+## Environment variables for Vercel (all set)
 
 | Name | Value |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://amxkbtjibfgvykexvkus.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | copy from `.env.example` |
-| `SUPABASE_SECRET_KEY` | Malcolm copies it from Supabase → mot-platform → Settings → API Keys. Never put it in chat or in git. |
-| `LINK_HASH_SALT` | Generate with `openssl rand -hex 32`. Safe to generate fresh: no clicks are recorded yet. Do not rotate it later without accepting that same-day visitor counts reset. |
+| `SUPABASE_SECRET_KEY` | Set by Malcolm (Production, Preview). From Supabase → mot-platform → Settings → API Keys. Never put it in chat or in git. |
+| `LINK_HASH_SALT` | Set (Production, Preview, sensitive). Do not rotate it without accepting that same-day visitor counts reset. |
 | `APP_HOSTS` | Leave empty until the app gets a custom domain. See the warning below. |
 
 ## Next steps, in order
 
-1. **Clean up git, install, check, commit, push.** The Cowork sandbox could not delete files, so `.git/_stale/` holds empty stray lock files and `.git/objects` has `tmp_obj_*` leftovers. Run `rm -rf .git/_stale && git gc --prune=now`, then `npm install`, run the checks, commit `CLAUDE.md` and `docs/`, and `git push -u origin main`.
-2. **Create the Vercel project** `dms` in "Chopper's projects", linked to the GitHub repo. Set the env vars above. Deploy to production.
-3. **Allow the sign-in link.** In Supabase → mot-platform → Authentication → URL Configuration → Redirect URLs, add `https://<production host>/auth/callback`.
-4. **Smoke test on production.**
-   - Sign in with the email link (same browser that requested it).
-   - Create a link, then open the fallback URL shown in the list (`/r/<brand id>/<slug>` while the custom domain is not set up).
-   - Confirm a row in `dms.link_clicks` and a click on the dashboard.
-   - If the Data API returns a permission error, fix it with an explicit grant in a new migration. Do not grant to `anon`, and do not switch tables on in the dashboard's "Exposed tables" list.
+Steps 1–4 were **done on 5 October**: git cleaned and pushed, Vercel project created and deployed, sign-in redirect URL added in Supabase, production smoke test passed (see "What was verified").
+
 5. **Short-link domain.** Add `go.spinmusic.uk` to the Vercel project and create the DNS record in Cloudflare (Spin's DNS is on Cloudflare). Re-test a link on the real domain.
 6. **Spin signup change** (in `radio1`, on a branch, for Malcolm's review): store `dms_click` and the `utm_*` values on the new account. Details below.
 7. **Spin read-only access**: a dedicated read-only Postgres role limited to a few reporting views in the `Radio1` project. Write the SQL and show Malcolm before running it.
@@ -88,7 +91,11 @@ Not verified (do these first after deploying):
 - **Sign-in email** uses Supabase's built-in sender unless custom SMTP is configured: a few emails an hour, and it can land in spam.
 - **"Exposed tables" in the Supabase dashboard** may show the `dms` tables as off. That is expected; they are granted to signed-in users only.
 - **30 October 2026:** Supabase stops auto-granting API access to new tables in `public` on existing projects. Does not affect `dms`. It will affect new tables in Malcolm's other apps.
-- **Git inside the Cowork sandbox** left stray lock files after each commit. A normal terminal does not have this problem.
+- **The Links page shows `go.spinmusic.uk/<slug>` even though that domain does not resolve yet.** It always shows the brand's link domain once one is stored. Until step 5 is done, share the fallback `/r/<brand id>/<slug>` (see Identifiers).
+- **A wrong `SUPABASE_SECRET_KEY` makes every short link answer "Link not found".** Supabase rejects the key with a 401 and the route treats the empty result as a missing link. The route now logs `[redirect] brand lookup failed` / `link lookup failed` in Vercel's runtime logs. When copying the key, use the copy icon in Supabase; selecting the masked text copies the dots.
+- **Env var changes need a new deployment.** Push to `main` or run `vercel deploy --prod` from this folder.
+- **The Vercel connector in Claude cannot create projects (403).** The Vercel CLI on this Mac is logged in to the team and was used instead.
+- **`npm run typecheck`** runs `next typegen` first, because `PageProps` and `LayoutProps` are generated types and a fresh clone does not have them.
 
 ## Spin audit findings (from reading `radio1`, 5 October)
 
@@ -109,23 +116,3 @@ Not verified (do these first after deploying):
 - Whether to move the outreach module ahead of the content engine (suggested by Cowork, unanswered).
 - Ten `SECURITY DEFINER` functions belonging to the Level app in `mot-platform` are callable without signing in (for example `admin_set_role`, `admin_list_users`). Reported, not investigated, not changed.
 - The strategy doc's pain and promise wording is still a proposal.
-
-## First prompt for Claude CLI
-
-Open your computer's terminal, paste this and run it:
-
-```
-cd ~/INSPIRE_EDGE/dms && claude
-```
-
-Then paste:
-
-```
-Read CLAUDE.md, docs/HANDOFF.md, docs/PLAN.md and README.md. Then do
-"Next steps" 1 to 4 from docs/HANDOFF.md: clean up git, npm install, run all
-checks, commit CLAUDE.md and docs/, push to origin main, create the Vercel
-project "dms" in the team "Chopper's projects" linked to this repo, set the
-environment variables, and deploy to production. Ask me for the Supabase
-secret key by telling me where to paste it in Vercel; do not ask me to paste
-it into this chat. Stop and report after the production smoke test.
-```

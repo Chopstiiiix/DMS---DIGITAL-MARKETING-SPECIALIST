@@ -73,12 +73,14 @@ export async function GET(
   if (parts.length === 2) {
     const [brandId, linkSlug] = parts as [string, string];
     if (!UUID.test(brandId)) return notFound();
-    const { data } = await db.from("brands").select(brandSelect).eq("id", brandId).maybeSingle<BrandRow>();
+    const { data, error } = await db.from("brands").select(brandSelect).eq("id", brandId).maybeSingle<BrandRow>();
+    if (error) console.error("[redirect] brand lookup failed", error.message);
     brand = data;
     slug = linkSlug;
   } else {
     const host = hostnameOf(request.headers);
-    const { data } = await db.from("brands").select(brandSelect).eq("link_domain", host).maybeSingle<BrandRow>();
+    const { data, error } = await db.from("brands").select(brandSelect).eq("link_domain", host).maybeSingle<BrandRow>();
+    if (error) console.error("[redirect] brand lookup failed", error.message);
     brand = data;
     slug = parts[0]!;
   }
@@ -88,12 +90,13 @@ export async function GET(
   slug = slug.toLowerCase();
   if (!SLUG_PATTERN.test(slug)) return redirect(brand.default_destination);
 
-  const { data: link } = await db
+  const { data: link, error: linkError } = await db
     .from("links")
     .select("id, slug, destination_url, channel, pillar, is_active, campaigns(slug)")
     .eq("brand_id", brand.id)
     .eq("slug", slug)
     .maybeSingle<LinkRow>();
+  if (linkError) console.error("[redirect] link lookup failed", linkError.message);
 
   if (!link || !link.is_active) return redirect(brand.default_destination);
 
