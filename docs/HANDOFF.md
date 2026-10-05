@@ -78,7 +78,7 @@ The click also showed on the dashboard (checked by Malcolm). The `smoke-test` li
 
 Steps 1–5 were **done on 5 October**: git cleaned and pushed, Vercel project created and deployed, sign-in redirect URL added in Supabase, production smoke test passed (see "What was verified"), and `go.spinmusic.uk` set up and tested with a real link.
 
-6. **Spin signup change** (in `radio1`, on a branch, for Malcolm's review): store `dms_click` and the `utm_*` values on the new account. Details below.
+6. **Spin signup change: built, awaiting Malcolm's review.** Branch `feat/dms-signup-attribution` in `radio1` (pushed, not merged). Middleware keeps `dms_click` + `utm_*` in an `sm_dms` cookie (30 days, last click wins); `/api/attribution/claim`, fired on app load, writes one row per new account to `public.signup_attribution` (service role only), only when the account was created after the click. To ship: review, apply `supabase/migrations/20261005160000_signup_attribution.sql` to Radio1, merge. Known gap: an email-password signup confirmed in a different browser loses the cookie; Google/Apple and same-browser confirmation are fine.
 7. **Spin read-only access**: a dedicated read-only Postgres role limited to a few reporting views in the `Radio1` project. Write the SQL and show Malcolm before running it.
 8. **Sync job in DMS**: scheduled job that reads those views and upserts `dms.funnel_events` with the service role.
 9. Then Phase 2 (content engine) per `docs/PLAN.md`. Cowork suggested moving the outreach module ahead of it, since Malcolm now owns every first-month channel himself. He has not answered.
