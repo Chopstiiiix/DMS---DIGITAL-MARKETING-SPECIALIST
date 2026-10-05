@@ -43,10 +43,9 @@ Verified on production (5 October, Claude CLI):
 
 Not verified yet:
 
-- The click appearing on the dashboard (Malcolm to check by eye).
 - `./scripts/test-db.sh` was not re-run (Docker was off; no migration changed).
 
-Test data left in production: link `smoke-test` and its clicks. Delete with Malcolm's OK.
+The click also showed on the dashboard (checked by Malcolm). The `smoke-test` link and its click were then deleted, so Spin starts with no links and no clicks.
 
 ## Identifiers
 
