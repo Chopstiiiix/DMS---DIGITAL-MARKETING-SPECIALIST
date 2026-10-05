@@ -21,6 +21,12 @@ export const supabaseSecretKey = () =>
 /** Server only. Salt for the unique-visitor hash. */
 export const linkHashSalt = () => required("LINK_HASH_SALT", process.env.LINK_HASH_SALT);
 
+/** Server only. Postgres URL for Spin's read-only `dms_reader` role (Radio1 project). */
+export const spinDatabaseUrl = () => required("SPIN_DATABASE_URL", process.env.SPIN_DATABASE_URL);
+
+/** Server only. Vercel Cron sends it as `Authorization: Bearer <CRON_SECRET>`. */
+export const cronSecret = () => required("CRON_SECRET", process.env.CRON_SECRET);
+
 /**
  * Postgres schema holding every DMS table. DMS shares a Supabase project with
  * other apps, so it keeps out of `public`. Must be listed under the project's

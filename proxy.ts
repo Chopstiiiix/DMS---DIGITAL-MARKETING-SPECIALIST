@@ -14,8 +14,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // The redirect route is public on the app host too, and the sign-in link
-  // has to land somewhere before there is a session.
-  if (pathname.startsWith("/r/") || pathname === "/auth/callback") return NextResponse.next();
+  // has to land somewhere before there is a session. Cron routes check
+  // CRON_SECRET themselves.
+  if (pathname.startsWith("/r/") || pathname === "/auth/callback" || pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
 
   // Everything else needs a signed-in user. Refresh the session cookie here,
   // because Server Components cannot write cookies.

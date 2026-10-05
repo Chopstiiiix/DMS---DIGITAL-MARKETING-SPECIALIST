@@ -12,8 +12,11 @@ several brands. Spin Music is the first brand.
 - Dashboard: clicks, signups and activations by channel and campaign
 - Multi-tenant database schema with row level security
 
-Not built yet: product sync (signups/activations), content engine, outreach,
-weekly review, paid ads.
+- Daily Spin sync: signups, first uploads/broadcasts/earnings and activations
+  from Spin's read-only reporting view, credited to the link that brought each
+  user in
+
+Not built yet: content engine, outreach, weekly review, paid ads.
 
 ## How tracking works
 
@@ -24,8 +27,11 @@ weekly review, paid ads.
 3. The destination URL gets `utm_source`, `utm_medium=dms`, `utm_campaign`,
    `utm_content` and `dms_click=<click id>`. App Store URLs get Apple's
    `ct` / `pt` / `mt` instead.
-4. The product stores `dms_click` at signup. The sync job turns signups and
-   activations into `funnel_events` joined to that click.
+4. The product stores `dms_click` at signup (Spin: `signup_attribution`).
+   The daily sync (`app/api/cron/sync-spin`, Vercel Cron at 05:00 UTC) reads
+   Spin's `dms_reporting.funnel_events` view as the read-only `dms_reader`
+   role and upserts `dms.funnel_events`, joined to the click and its link.
+   To run it by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<app host>/api/cron/sync-spin`.
 
 A link may only point at hosts on its brand's allow-list
 (`brands.allowed_hosts`), so the redirector cannot be used as an open redirect.
@@ -100,7 +106,9 @@ app/(app)/            signed-in pages: dashboard, links
 app/login/            sign-in
 app/auth/callback/    landing point for emailed sign-in links
 app/r/[...parts]/     public short-link redirect
+app/api/cron/         scheduled jobs (CRON_SECRET-protected)
 lib/links/            slug, destination, classification and form rules (pure, tested)
+lib/sync/             product syncs (Spin)
 lib/supabase/         server client (as the user) and admin client (service role)
 lib/hosts.ts          app host vs link domain
 proxy.ts              session refresh, auth guard, link-domain rewrite
