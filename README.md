@@ -5,7 +5,8 @@ several brands. Spin Music is the first brand.
 
 **Status: Phase 1 (core + tracking), in progress.** What exists today:
 
-- Sign-in (no public sign-up) and a per-brand workspace
+- Sign-in by one-time email link or password (no public sign-up; sign-in never
+  creates accounts) and a per-brand workspace
 - Link builder: one short tracked link per post, message or partner
 - Public redirect that logs each click and passes campaign tags to the destination
 - Dashboard: clicks, signups and activations by channel and campaign
@@ -42,13 +43,27 @@ DMS shares the `mot-platform` Supabase project (eu-west-1) with other apps to
 avoid paying for a separate one. To stay out of their way it keeps everything
 in two schemas of its own:
 
-- `dms` — tables and the `link_stats` function. Must be listed under
-  **Settings → API → Exposed schemas** in the Supabase dashboard.
-- `dms_private` — helper functions used by row level security.
+- `dms` — tables and the `link_stats` function. Listed under
+  **Integrations → Data API → Settings → Exposed schemas** in the Supabase
+  dashboard (done 2026-10-05).
+- `dms_private` — helper functions used by row level security. Not exposed.
 
 Access is granted explicitly in the migration: signed-out clients get nothing,
 signed-in users get what row level security allows, and only the service role
 writes clicks, funnel events and the audit log.
+
+Rules for every new table in `dms`:
+
+1. Enable row level security and add policies in the same migration.
+2. Grant access explicitly (`authenticated` for what the app reads or edits,
+   `service_role` for server jobs). Nothing is granted automatically: the
+   dashboard's "Automatically expose new tables" setting covers the `public`
+   schema only.
+3. Never grant to `anon`.
+
+The dashboard's "Exposed tables" list may show the `dms` tables as off. Leave
+them off. Switching one on there adds grants beyond the ones the migration
+chose; signed-in access already works through the explicit grants.
 
 Sharing a project means sharing its sign-in. Accounts created by the other
 apps can authenticate against DMS, but they belong to no DMS organization, so
@@ -63,7 +78,10 @@ its own project, `pg_dump -n dms -n dms_private` moves it.
    add `dms` to the exposed schemas.
 3. Add a `dms.memberships` row for each person who should have access
    (see the comment in `seed.sql`).
-4. `npm install`, then `npm run dev`.
+4. In Supabase, add the app's address to **Authentication → URL
+   Configuration → Redirect URLs** (e.g. `https://<app host>/auth/callback`),
+   or emailed sign-in links will not return to DMS.
+5. `npm install`, then `npm run dev`.
 
 ## Checks
 
@@ -80,6 +98,7 @@ its own project, `pg_dump -n dms -n dms_private` moves it.
 ```
 app/(app)/            signed-in pages: dashboard, links
 app/login/            sign-in
+app/auth/callback/    landing point for emailed sign-in links
 app/r/[...parts]/     public short-link redirect
 lib/links/            slug, destination, classification and form rules (pure, tested)
 lib/supabase/         server client (as the user) and admin client (service role)

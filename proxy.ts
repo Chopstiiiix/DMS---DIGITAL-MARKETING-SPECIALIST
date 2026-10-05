@@ -13,8 +13,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // The redirect route is public on the app host too.
-  if (pathname.startsWith("/r/")) return NextResponse.next();
+  // The redirect route is public on the app host too, and the sign-in link
+  // has to land somewhere before there is a session.
+  if (pathname.startsWith("/r/") || pathname === "/auth/callback") return NextResponse.next();
 
   // Everything else needs a signed-in user. Refresh the session cookie here,
   // because Server Components cannot write cookies.
