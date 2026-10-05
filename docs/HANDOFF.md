@@ -14,7 +14,7 @@ below, done 5 October). **Live at https://dms-mu-black.vercel.app.**
 | Vercel | Project `dms` (`prj_yxYfrEiQpIgsi8KJl8iwxBZ6Fzco`) in "Chopper's projects" (`team_Sv4x7CmXpc3UlyGxo9nMtIP0`, slug `choppers-projects-b98532fa`). Connected to GitHub: every push to `main` deploys to production. Env vars set. |
 | Production | `https://dms-mu-black.vercel.app`. Redirect URL `https://dms-mu-black.vercel.app/auth/callback` added in Supabase. |
 | Sign-in | Email link tested end to end on production. |
-| Short-link domain | `go.spinmusic.uk` chosen and stored on the brand. No DNS record yet, so short links only work at the fallback `/r/<brand id>/<slug>` (see below). |
+| Short-link domain | `https://go.spinmusic.uk/<slug>` live: added to the Vercel project, Let's Encrypt certificate issued, first real link `ig` clicked and logged. |
 | Spin sync | Not started. Dashboard shows clicks only until it exists. |
 
 ## What was built (Phase 1, first slice)
@@ -60,7 +60,8 @@ The click also showed on the dashboard (checked by Malcolm). The `smoke-test` li
 | Brand settings | link domain `go.spinmusic.uk`; default destination `https://spinmusic.uk/signup`; allowed hosts `spinmusic.uk`, `apps.apple.com` |
 | Vercel function region | `dub1` (set in `vercel.json`, next to the database) |
 | Spin brand id | `543a3992-ed6e-4014-9ba5-0cac13034c20` |
-| Short-link fallback | `https://dms-mu-black.vercel.app/r/543a3992-ed6e-4014-9ba5-0cac13034c20/<slug>` |
+| Short-link fallback | `https://dms-mu-black.vercel.app/r/543a3992-ed6e-4014-9ba5-0cac13034c20/<slug>` (works alongside the real domain) |
+| Short-link DNS | Cloudflare zone `spinmusic.uk` (`e876bf9a988b2779cb81a44166ed6b5a`): `A go → 76.76.21.21`, DNS only (grey cloud), record `c1cb2da66bcf15ef3f49431fedf5aa84`. Keep it grey: Vercel issues the certificate and the redirect reads the visitor's real headers. Changed with the API token in `~/INSPIRE_EDGE/Automation/.env`. |
 | Spin app repo | `~/INSPIRE_EDGE/radio1` (`github.com/Chopstiiiix/RADIO1`) |
 
 ## Environment variables for Vercel (all set)
@@ -75,9 +76,8 @@ The click also showed on the dashboard (checked by Malcolm). The `smoke-test` li
 
 ## Next steps, in order
 
-Steps 1–4 were **done on 5 October**: git cleaned and pushed, Vercel project created and deployed, sign-in redirect URL added in Supabase, production smoke test passed (see "What was verified").
+Steps 1–5 were **done on 5 October**: git cleaned and pushed, Vercel project created and deployed, sign-in redirect URL added in Supabase, production smoke test passed (see "What was verified"), and `go.spinmusic.uk` set up and tested with a real link.
 
-5. **Short-link domain.** Add `go.spinmusic.uk` to the Vercel project and create the DNS record in Cloudflare (Spin's DNS is on Cloudflare). Re-test a link on the real domain.
 6. **Spin signup change** (in `radio1`, on a branch, for Malcolm's review): store `dms_click` and the `utm_*` values on the new account. Details below.
 7. **Spin read-only access**: a dedicated read-only Postgres role limited to a few reporting views in the `Radio1` project. Write the SQL and show Malcolm before running it.
 8. **Sync job in DMS**: scheduled job that reads those views and upserts `dms.funnel_events` with the service role.
@@ -90,7 +90,8 @@ Steps 1–4 were **done on 5 October**: git cleaned and pushed, Vercel project c
 - **Sign-in email** uses Supabase's built-in sender unless custom SMTP is configured: a few emails an hour, and it can land in spam.
 - **"Exposed tables" in the Supabase dashboard** may show the `dms` tables as off. That is expected; they are granted to signed-in users only.
 - **30 October 2026:** Supabase stops auto-granting API access to new tables in `public` on existing projects. Does not affect `dms`. It will affect new tables in Malcolm's other apps.
-- **The Links page shows `go.spinmusic.uk/<slug>` even though that domain does not resolve yet.** It always shows the brand's link domain once one is stored. Until step 5 is done, share the fallback `/r/<brand id>/<slug>` (see Identifiers).
+- **Signed-in Spin users skip the signup page.** Spin's middleware (`radio1/lib/supabase/middleware.ts`) bounces anyone with a session from `/signup` into the app, so testing a link while signed in to Spin lands you in the app. New visitors stay on `/signup` with the `utm_*` and `dms_click` values in the URL. The landing page `/` is behind the pre-launch access code, which is why links point at `/signup`.
+- **A new link domain can look broken for a while** if the browser checked it before the DNS record existed (cached "not found"). Use a private window, or flush the Mac's cache: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`.
 - **A wrong `SUPABASE_SECRET_KEY` makes every short link answer "Link not found".** Supabase rejects the key with a 401 and the route treats the empty result as a missing link. The route now logs `[redirect] brand lookup failed` / `link lookup failed` in Vercel's runtime logs. When copying the key, use the copy icon in Supabase; selecting the masked text copies the dots.
 - **Env var changes need a new deployment.** Push to `main` or run `vercel deploy --prod` from this folder.
 - **The Vercel connector in Claude cannot create projects (403).** The Vercel CLI on this Mac is logged in to the team and was used instead.
